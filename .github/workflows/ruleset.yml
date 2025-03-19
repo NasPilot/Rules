@@ -1,0 +1,157 @@
+name: Build Ruleset
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 20 * * *"
+  push:
+    branches:
+      - master
+    paths:
+      - "domains/**"
+      - "sing-box/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Create directories
+        run: |
+          mkdir -p ./sing-box/geo/{geoip,geosite}
+
+      - name: Download GeoIP files
+        run: |
+          GEOIP_FILES=(
+            "cn"
+            "netflix"
+            "apple"
+            "telegram"
+            "pt"
+          )
+          for file in "${GEOIP_FILES[@]}"; do
+            curl -L "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/${file}.srs" -o "./sing-box/geo/geoip/${file}.srs"
+          done
+
+      - name: Generate GeoSite files
+        run: |
+          # 基础规则集
+          GEOSITE_FILES=(
+            "cn"
+            "private"
+            "category-ads-all"
+            "netflix"
+            "disney"
+            "youtube"
+            "spotify"
+            "apple"
+            "telegram"
+            "openai"
+            "microsoft"
+            "amazon"
+            "geolocation-!cn"
+          )
+          
+          for file in "${GEOSITE_FILES[@]}"; do
+            curl -L "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/${file}.srs" -o "./sing-box/geo/geosite/${file}.srs"
+          done
+          
+          # 自定义规则集
+          CUSTOM_FILES=(
+            "category-pt"
+            "tracker"
+          )
+          
+          for file in "${CUSTOM_FILES[@]}"; do
+            if [ -f "./domains/${file}.list" ]; then
+              # 转换 list 文件为 sing-box 规则集格式
+              {
+                echo "{"
+                echo '  "version": 2,'
+                echo '  "rules": ['
+                echo '    {'
+                echo '      "domain_suffix": ['
+                grep "DOMAIN-SUFFIX," "./domains/${file}.list" | sed 's/DOMAIN-SUFFIX,/        "/' | sed 's/$/",/'
+                echo '      ]'
+                echo '    }'
+                echo '  ]'
+                echo '}'
+              } > "./sing-box/geo/geosite/${file}.json"
+              
+              # 编译为 .srs 格式
+              sing-box rule-set compile \
+                --output "./sing-box/geo/geosite/${file}.srs" \
+                "./sing-box/geo/geosite/${file}.json"
+              
+              rm "./sing-box/geo/geosite/${file}.json"
+            fi
+          done
+
+      - name: Generate config file
+        run: |
+          # 生成完整的 sing-box 配置文件
+          cat > ./sing-box/Rule.conf << 'EOF'
+          {
+            "route": {
+              "auto_detect_interface": true,
+              "final": "Proxy",
+              "rules": [
+                // ... 您现有的路由规则 ...
+              ],
+              "rule_set": [
+          EOF
+          
+          # 添加 GeoIP 规则集
+          for file in ./sing-box/geo/geoip/*.srs; do
+            name=$(basename "$file" .srs)
+            echo "    {
+              \"tag\": \"geoip-${name}\",
+              \"type\": \"remote\",
+              \"format\": \"binary\",
+              \"url\": \"https://testingcf.jsdelivr.net/gh/${GITHUB_REPOSITORY}@sing/geo/geoip/${name}.srs\",
+              \"download_detour\": \"direct\"
+            }," >> ./sing-box/Rule.conf
+          done
+          
+          # 添加 GeoSite 规则集
+          for file in ./sing-box/geo/geosite/*.srs; do
+            name=$(basename "$file" .srs)
+            echo "    {
+              \"tag\": \"geosite-${name}\",
+              \"type\": \"remote\",
+              \"format\": \"binary\",
+              \"url\": \"https://testingcf.jsdelivr.net/gh/${GITHUB_REPOSITORY}@sing/geo/geosite/${name}.srs\",
+              \"download_detour\": \"direct\"
+            }," >> ./sing-box/Rule.conf
+          done
+          
+          # 移除最后一个逗号并关闭配置文件
+          sed -i '$ s/,$//' ./sing-box/Rule.conf
+          echo "    ]
+          }
+          }" >> ./sing-box/Rule.conf
+
+      - name: Push to sing branch
+        run: |
+          cd ./sing-box
+          git init
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout -b sing
+          git add .
+          git commit -m "更新规则集文件于 $(date +'%Y-%m-%d %H:%M:%S')"
+          git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+          git push -f origin sing
+
+      - name: Purge jsDelivr CDN
+        run: |
+          for file in $(find ./sing-box/geo -type f -name "*.srs"); do
+            relative_path=${file#./sing-box/}
+            curl -i "https://purge.jsdelivr.net/gh/${{ github.repository }}@sing/${relative_path}"
+          done
