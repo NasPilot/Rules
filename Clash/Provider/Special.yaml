@@ -157,6 +157,8 @@ payload:
   - DOMAIN-SUFFIX,pthome.net
   - DOMAIN-SUFFIX,sunnypt.top
   - DOMAIN-SUFFIX,ubits.club
+  - DOMAIN-SUFFIX,agsvpt.com
+  - DOMAIN-SUFFIX,agsvpt.cn
   - DOMAIN-SUFFIX,pt.eastgame.org
 
   - DOMAIN-KEYWORD,announce
