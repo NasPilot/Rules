@@ -105,6 +105,9 @@ PROCESS-NAME,uTorrent
 PROCESS-NAME,WebTorrent
 PROCESS-NAME,WebTorrent Helper
 
+# > Plex
+DOMAIN-SUFFIX,plex.tv
+
 # > Private Tracker
 DOMAIN-SUFFIX,audiences.me
 DOMAIN-SUFFIX,awesome-hd.me
@@ -132,7 +135,22 @@ DOMAIN-SUFFIX,sandai.net
 DOMAIN-SUFFIX,springsunday.net
 DOMAIN-SUFFIX,tjupt.org
 DOMAIN-SUFFIX,totheglory.im
+DOMAIN-SUFFIX,leaves.red
+DOMAIN-SUFFIX,pterclub.com
+DOMAIN-SUFFIX,cinefiles.info
+DOMAIN-SUFFIX,1ptba.com
+DOMAIN-SUFFIX,hdfans.org
+DOMAIN-SUFFIX,hdhome.org
+DOMAIN-SUFFIX,hdtime.org
+DOMAIN-SUFFIX,hhanclub.top
+DOMAIN-SUFFIX,ptchdbits.co
+DOMAIN-SUFFIX,pthome.net
+DOMAIN-SUFFIX,sunnypt.top
+DOMAIN-SUFFIX,ubits.club
+DOMAIN-SUFFIX,pt.eastgame.org
 
+DOMAIN-KEYWORD,announce
+DOMAIN-KEYWORD,torrent
 DOMAIN-SUFFIX,smtp
 URL-REGEX,(Subject|HELO|SMTP)
 
